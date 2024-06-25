@@ -4,7 +4,7 @@ Created on Mon Jun 17 15:36:13 2024
 
 @author: Pascaliensis with ChatGPT 3.4 and ChatGPT 4o
 
-Version 0.10
+Version 0.12
 """
 
 
@@ -31,17 +31,6 @@ import time
 
 
 
-def update_exclusion_list(exclusion_list_urls, url):
-    # add this URL to exclusion list
-    exclusion_list_urls.append(url)
-    exclusion_list_urls = [url.strip() for url in exclusion_list_urls]
-    exclusion_list_urls = list(set(exclusion_list_urls))
-    # Open the file in write mode
-    with open(exclusion_list_file, 'w', encoding='utf-8') as file:
-        # Write each string in the list to the file
-        for item in exclusion_list_urls:
-            file.write(item + '\n')  # Add a newline character after each string
-
 
 # this function strip a url to find its blog root web site
 def rootify(url):
@@ -67,7 +56,7 @@ def rootify(url):
 
 # This function identifies if an URL is a blog and if it is about TTRPG 
 
-def find_out(url, exclusion_list_urls, timeout=10, max_retries=3):
+def find_out(url, exclusion_list_urls, timeout=10, max_retries=1):
     
     # return the root of the website, 
     # except if the URL contains /blog/ after the root, in this case it return root/blog/
@@ -163,7 +152,7 @@ def find_out(url, exclusion_list_urls, timeout=10, max_retries=3):
                 #result = [is_blog, is_ttrpg_blog, found_keywords]
                     
             except requests.RequestException as e:
-                 print(f"Error fetching {root_url}: {e}")  
+                 print(f"FO- Error fetching {root_url}: {e}")  
                  time.sleep(2)  # Delay before retrying
                  continue
                 
@@ -363,22 +352,6 @@ initial_citing_urls = [url for url in initial_citing_urls if url not in url_trap
 
 
 
-
-# deprecated code : a list of URLs directly in the Python code  
-#  
-#initial_citing_urls = [
-#    'https://jrients.blogspot.com',
-#    'https://grognardia.blogspot.com',
-#    'https://goblinpunch.blogspot.com',
-#]
-
-
-
-
-
-
-
-
 ### Writing the next iteration while processing the URLs 
 
 nb_URLs = len(initial_citing_urls)
@@ -415,93 +388,106 @@ for citing_url in initial_citing_urls:
 
     root_citing_url = rootify(citing_url)
     print(f"\n\nExploring {citing_url} : ")
-
-    citing_is_blog, citing_is_ttrpg_blog, citing_found_keywords = find_out(root_citing_url, exclusion_list_urls)
     
-    if citing_is_ttrpg_blog: 
+    if root_citing_url not in exclusion_list_urls : 
 
-        # Retrieves the cited URL (pointing to other website than the citing URL)         
-        try:
-            response = requests.get(root_citing_url)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            cited_blog_urls = set()
-            
-            # retrieve a list of external URL that are blogs and that are about TTRPG 
-            for a_tag in soup.find_all('a', href=True):
-                cit_url = urljoin(root_citing_url, a_tag['href'])            
-                root_cited_url = rootify(cit_url)
+        citing_is_blog, citing_is_ttrpg_blog, citing_found_keywords = find_out(root_citing_url, exclusion_list_urls)
+        
+        if citing_is_ttrpg_blog: 
+    
+            # Retrieves the cited URL (pointing to other website than the citing URL)         
+            try:
+                response = requests.get(root_citing_url)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, 'html.parser')
                 
-                if root_cited_url != root_citing_url :
+                cited_blog_urls = set()
+                
+                # retrieve a list of external URL that are blogs and that are about TTRPG 
+                for a_tag in soup.find_all('a', href=True):
+                    cit_url = urljoin(root_citing_url, a_tag['href'])            
+                    root_cited_url = rootify(cit_url)
                     
-                        if root_cited_url not in exclusion_list_urls : 
-                            # verify if the cited URL is a TTRPG blog
-                            # if yes, integrates it in the list
-                            try: 
-                                cited_is_blog, cited_is_ttrpg_blog, cited_found_keywords = find_out(root_cited_url, exclusion_list_urls)
-                            except:
-                                cited_is_ttrpg_blog = False
-                                
-                                # updatye exclusion list
+                    if root_cited_url != root_citing_url :
+                        
+                            if root_cited_url not in exclusion_list_urls : 
+                                # verify if the cited URL is a TTRPG blog
+                                # if yes, integrates it in the list
+                                try: 
+                                    cited_is_blog, cited_is_ttrpg_blog, cited_found_keywords = find_out(root_cited_url, exclusion_list_urls)
+                                except:
+                                    cited_is_ttrpg_blog = False
+                                    
+                                # update exclusion list
                                 exclusion_list_urls.append(root_cited_url)
                                 exclusion_list_urls = [root_cited_url.strip() for root_cited_url in exclusion_list_urls]
                                 exclusion_list_urls = list(set(exclusion_list_urls))
-                                
-                            if cited_is_ttrpg_blog : 
-                                cited_blog_urls.add(root_cited_url)
-                                print(".", end="")
-                        
-                else: 
-                        print("/", end="")
-                        # updatye exclusion list
-                        exclusion_list_urls.append(root_cited_url)
-                        exclusion_list_urls = [root_cited_url.strip() for root_cited_url in exclusion_list_urls]
-                        exclusion_list_urls = list(set(exclusion_list_urls))
-        
-        except requests.RequestException as e:
-            print(f"Error fetching {url}: {e}")
-
-        
-        if cited_blog_urls : 
+                                    
+                                if cited_is_ttrpg_blog : 
+                                    cited_blog_urls.add(root_cited_url)
+                                    print(".", end="")
+                            
+                    else: 
+                            print("/", end="")
+                            # updatye exclusion list
+                            exclusion_list_urls.append(root_cited_url)
+                            exclusion_list_urls = [root_cited_url.strip() for root_cited_url in exclusion_list_urls]
+                            exclusion_list_urls = list(set(exclusion_list_urls))
             
-            for cited_url in cited_blog_urls:
+            except requests.RequestException as e:
+                print(f"Error fetching {url}: {e}")
+    
+            
+            if cited_blog_urls : 
+                
+                for cited_url in cited_blog_urls:
+                    with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
+                        writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
+                        writer.writerow({
+                                            'CitingBlogURL': root_citing_url,
+                                            'CitingBlogKeywords': citing_found_keywords,
+                                            'CitedBlogURL': cited_url
+                                        })
+    
+            else : 
                 with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
                     writer.writerow({
                                         'CitingBlogURL': root_citing_url,
                                         'CitingBlogKeywords': citing_found_keywords,
-                                        'CitedBlogURL': cited_url
+                                        'CitedBlogURL': "no TTRPG blog cited"
                                     })
-
-        else : 
+    
+        else: 
+            if citing_found_keywords : 
+                # in fact, its asking "do there is a error message in citing_found_keywords?"
+                data = {
+                    'CitingBlogURL': root_citing_url,
+                    'CitingBlogKeywords': f"not TTRPG blog or {citing_found_keywords}",
+                    'CitedBlogURL': ""
+                }
+    
+            else : 
+                data = {
+                    'CitingBlogURL': root_citing_url,
+                    'CitingBlogKeywords': "not TTRPG blog",
+                    'CitedBlogURL': ""
+                }
             with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
                 writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
-                writer.writerow({
-                                    'CitingBlogURL': root_citing_url,
-                                    'CitingBlogKeywords': citing_found_keywords,
-                                    'CitedBlogURL': "no TTRPG blog cited"
-                                })
-
-    else: 
-        if citing_found_keywords : 
-            # in fact, its asking "do there is a error message in citing_found_keywords?"
-            data = {
-                'CitingBlogURL': root_citing_url,
-                'CitingBlogKeywords': f"not TTRPG blog or {citing_found_keywords}",
-                'CitedBlogURL': ""
-            }
-
-        else : 
-            data = {
-                'CitingBlogURL': root_citing_url,
-                'CitingBlogKeywords': "not TTRPG blog",
-                'CitedBlogURL': ""
-            }
+                writer.writerow(data)
+    else : 
+        # in case root_citing_url is in exclusion list 
+        data = {
+            'CitingBlogURL': root_citing_url,
+            'CitingBlogKeywords': "not TTRPG blog (exclusion)",
+            'CitedBlogURL': ""
+        }
         with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
             writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
             writer.writerow(data)
-
+    
+    
     # write the updated exclusion list
     with open(exclusion_list_file, 'w', encoding='utf-8') as file:
         # Write each string in the list to the file
