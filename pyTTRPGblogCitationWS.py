@@ -26,7 +26,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 import os.path
-
+import time
 
 
 
@@ -67,7 +67,7 @@ def rootify(url):
 
 # This function identifies if an URL is a blog and if it is about TTRPG 
 
-def find_out(url):
+def find_out(url, exclusion_list_urls, timeout=10, max_retries=3):
     
     # return the root of the website, 
     # except if the URL contains /blog/ after the root, in this case it return root/blog/
@@ -78,92 +78,104 @@ def find_out(url):
     is_ttrpg_blog = False
     found_keywords = ''
     
-    if root_url in exclusion_list_urls:
+    if root_url in exclusion_list_urls :
         
-        result = [is_blog, is_ttrpg_blog, found_keywords]
+        print("")
+        #result = [is_blog, is_ttrpg_blog, found_keywords]
         
     else : # if if root_url is NOT in exclusion_list
     
-        try:
-            response = requests.get(root_url)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-        
-            # 1. Try to identify if the website is a blog 
-            blog_keywords = ['wordpress', 'blogger', 'tumblr', 'blogspot', 'medium', 'itch'
-                             'wix', 'squarespace', 'weebly', 'ghost', 'joomla', 'drupal', 'typepad',
-                             'substack', 'hubPages', 'github', 'gitlab', 'framagit', 'livejournal',
-                             'jekyll', 'hashnode', 'overblog', 'blog', 'canalblog', 'skyrock', 'svbtle']
+        for _ in range(max_retries):
             
-            # 1.1 Check the <meta> tag with name="generator"
-            meta_tag = soup.find('meta', {'name': 'generator'})
-            # Check if the meta tag is present and contains any of the specified keywords (case-insensitive)
-            if meta_tag:
-                content = meta_tag.get('content', '').lower()  # Convert content to lowercase
-                if any(keyword in content for keyword in blog_keywords):
+            try:
+                response = requests.get(root_url,timeout=timeout)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, 'html.parser')
+            
+                # 1. Try to identify if the website is a blog 
+                blog_keywords = ['wordpress', 'blogger', 'tumblr', 'blogspot', 'medium', 'itch'
+                                 'wix', 'squarespace', 'weebly', 'ghost', 'joomla', 'drupal', 'typepad',
+                                 'substack', 'hubPages', 'github', 'gitlab', 'framagit', 'livejournal',
+                                 'jekyll', 'hashnode', 'overblog', 'blog', 'canalblog', 'skyrock', 'svbtle']
+                
+                # 1.1 Check the <meta> tag with name="generator"
+                meta_tag = soup.find('meta', {'name': 'generator'})
+                # Check if the meta tag is present and contains any of the specified keywords (case-insensitive)
+                if meta_tag:
+                    content = meta_tag.get('content', '').lower()  # Convert content to lowercase
+                    if any(keyword in content for keyword in blog_keywords):
+                        is_blog = True
+                
+                # 1.2 Check the <link> tag for Atom or RSS feed indicator 
+                atom_link = soup.find('link', {'rel': 'alternate', 'type': 'application/atom+xml'})
+                rss_link = soup.find('link', {'rel': 'alternate', 'type': 'application/rss+xml'})
+                if atom_link or rss_link:
                     is_blog = True
-            
-            # 1.2 Check the <link> tag for Atom or RSS feed indicator 
-            atom_link = soup.find('link', {'rel': 'alternate', 'type': 'application/atom+xml'})
-            rss_link = soup.find('link', {'rel': 'alternate', 'type': 'application/rss+xml'})
-            if atom_link or rss_link:
-                is_blog = True
-            
-            # 1.3 Check with URL
-            # Adding more keywords but just for the url 
-            url_blog_keywords = ["article", 
-                                 "articles",
-                                 "post",
-                                 "posts",]
-            blog_keywords = blog_keywords + url_blog_keywords
-            patterns = [re.compile(r'.*' + keyword + r'.*', re.IGNORECASE) for keyword in blog_keywords]
-            # Check if any pattern matches the content in the URL
-            if any(pattern.match(url) for pattern in patterns):
-                is_blog = True
-            
-            # 2. Try to identify if the content talk about TTRPG 
-            if is_blog :
                 
-                # Remove all <a> tags and their content (to search within the text and not the <a>) 
-                for a_tag in soup.find_all('a'):
-                    a_tag.decompose()
-        
-                text = soup.get_text().lower()
+                # 1.3 Check with URL
+                # Adding more keywords but just for the url 
+                url_blog_keywords = ["article", 
+                                     "articles",
+                                     "post",
+                                     "posts",]
+                blog_keywords = blog_keywords + url_blog_keywords
+                patterns = [re.compile(r'.*' + keyword + r'.*', re.IGNORECASE) for keyword in blog_keywords]
+                # Check if any pattern matches the content in the URL
+                if any(pattern.match(url) for pattern in patterns):
+                    is_blog = True
                 
-                rpg_keywords = ['ttrpg', 'trpg', 'rpg', 'role-playing', 'roleplaying', 'role playing', 
-                                'jeu de rôle', 'jeux de rôle', 'rôliste', 
-                                'rolista', 'RPGista', 'juego de rol', 'juegos de rol', 'joc de rol',
-                                'rollenspiel', 'roolipeli', 'gioco di ruolo', 'ludus personarum',
-                                'gra fabularna', 'rollspel', 'рольова гра', 'permainan berperanan',
-                                'permainan bermain peran', 
-                                'gamemaster', 'game master', 'dungeon master', 
-                                'osr', 'd&d', 'the forge']
-                found_keywords = [keyword for keyword in rpg_keywords if keyword in text]
-                
-                if found_keywords:
-                    is_ttrpg_blog = True    
+                # 2. Try to identify if the content talk about TTRPG 
+                if is_blog :
                     
+                    # Remove all <a> tags and their content (to search within the text and not the <a>) 
+                    for a_tag in soup.find_all('a'):
+                        a_tag.decompose()
+            
+                    text = soup.get_text().lower()
+                    
+                    rpg_keywords = ['ttrpg', 'trpg', 'rpg', 'role-playing', 'roleplaying', 'role playing', 
+                                    'jeu de rôle', 'jeux de rôle', 'rôliste', 
+                                    'rolista', 'RPGista', 'juego de rol', 'juegos de rol', 'joc de rol',
+                                    'rollenspiel', 'roolipeli', 'gioco di ruolo', 'ludus personarum',
+                                    'gra fabularna', 'rollspel', 'рольова гра', 'permainan berperanan',
+                                    'permainan bermain peran', 
+                                    'gamemaster', 'game master', 'dungeon master', 
+                                    'osr', 'd&d', 'the forge']
+                    found_keywords = [keyword for keyword in rpg_keywords if keyword in text]
+                    
+                    if found_keywords:
+                        is_ttrpg_blog = True    
+                        
+                    else : 
+                        
+                        # add this URL to exclusion list
+                        exclusion_list_urls.append(root_url)
+                        exclusion_list_urls = [root_url.strip() for root_url in exclusion_list_urls]
+                        exclusion_list_urls = list(set(exclusion_list_urls))
+                        
+                
                 else : 
-                    
-                    # add this URL to exclusion list
-                    update_exclusion_list(exclusion_list_urls, root_url)
-                    
-            
-            else : 
-                # add this URL to exclusion list
-                update_exclusion_list(exclusion_list_urls, root_url)
-            
-            result = [is_blog, is_ttrpg_blog, found_keywords]
+                        # add this URL to exclusion list
+                        exclusion_list_urls.append(root_url)
+                        exclusion_list_urls = [root_url.strip() for root_url in exclusion_list_urls]
+                        exclusion_list_urls = list(set(exclusion_list_urls))
                 
-        except requests.RequestException as e:
-             print(f"Error fetching {root_url}: {e}")   
-            
-             result = [is_blog, is_ttrpg_blog, str(e)] 
-             
-             # add this URL to exclusion list
-             update_exclusion_list(exclusion_list_urls, root_url)
-             
-    return result 
+                #result = [is_blog, is_ttrpg_blog, found_keywords]
+                    
+            except requests.RequestException as e:
+                 print(f"Error fetching {root_url}: {e}")  
+                 time.sleep(2)  # Delay before retrying
+                 continue
+                
+                 #result = [is_blog, is_ttrpg_blog, str(e)] 
+                 found_keywords = str(e)
+                 
+                 # add this URL to exclusion list
+                 exclusion_list_urls.append(root_url)
+                 exclusion_list_urls = [root_url.strip() for root_url in exclusion_list_urls]
+                 exclusion_list_urls = list(set(exclusion_list_urls))
+                    
+    return is_blog, is_ttrpg_blog, found_keywords 
 
 
 
@@ -188,8 +200,7 @@ def find_out(url):
 # After, it can be removed or left here (it is automatically ignored after beceuse it was processed)
 
 urls_2_inject = [
-    "https://zotrpg.blogspot.com/",
-    "https://jdr.hypotheses.org/"
+    "https://www.prismaticwasteland.com",
     ]
 
 
@@ -339,6 +350,8 @@ url_traps = {
     "https://lurchundlama.de",
     "http://brandonsanderson.com",
     "https://docschottslab.wordpress.com",
+    "hamsterhoard.blogspot.com",
+    "http://www.canonfire.com",
 } 
  
 # Using list comprehension to create a new list without the URLs to remove
@@ -403,7 +416,7 @@ for citing_url in initial_citing_urls:
     root_citing_url = rootify(citing_url)
     print(f"\n\nExploring {citing_url} : ")
 
-    citing_is_blog, citing_is_ttrpg_blog, citing_found_keywords = find_out(root_citing_url)
+    citing_is_blog, citing_is_ttrpg_blog, citing_found_keywords = find_out(root_citing_url, exclusion_list_urls)
     
     if citing_is_ttrpg_blog: 
 
@@ -422,19 +435,29 @@ for citing_url in initial_citing_urls:
                 
                 if root_cited_url != root_citing_url :
                     
-                        # verify if the cited URL is a TTRPG blog
-                        # if yes, integrates it in the list
-                        try: 
-                            cited_is_blog, cited_is_ttrpg_blog, cited_found_keywords = find_out(root_cited_url)
-                        except:
-                            cited_is_ttrpg_blog = False
-                            update_exclusion_list(exclusion_list_urls, root_cited_url)
-                        if cited_is_ttrpg_blog : 
-                            cited_blog_urls.add(root_cited_url)
-                            print(".", end="")
+                        if root_cited_url not in exclusion_list_urls : 
+                            # verify if the cited URL is a TTRPG blog
+                            # if yes, integrates it in the list
+                            try: 
+                                cited_is_blog, cited_is_ttrpg_blog, cited_found_keywords = find_out(root_cited_url, exclusion_list_urls)
+                            except:
+                                cited_is_ttrpg_blog = False
+                                
+                                # updatye exclusion list
+                                exclusion_list_urls.append(root_cited_url)
+                                exclusion_list_urls = [root_cited_url.strip() for root_cited_url in exclusion_list_urls]
+                                exclusion_list_urls = list(set(exclusion_list_urls))
+                                
+                            if cited_is_ttrpg_blog : 
+                                cited_blog_urls.add(root_cited_url)
+                                print(".", end="")
+                        
                 else: 
                         print("/", end="")
-                        update_exclusion_list(exclusion_list_urls, root_cited_url)
+                        # updatye exclusion list
+                        exclusion_list_urls.append(root_cited_url)
+                        exclusion_list_urls = [root_cited_url.strip() for root_cited_url in exclusion_list_urls]
+                        exclusion_list_urls = list(set(exclusion_list_urls))
         
         except requests.RequestException as e:
             print(f"Error fetching {url}: {e}")
@@ -479,4 +502,8 @@ for citing_url in initial_citing_urls:
             writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
             writer.writerow(data)
 
-
+    # write the updated exclusion list
+    with open(exclusion_list_file, 'w', encoding='utf-8') as file:
+        # Write each string in the list to the file
+        for item in exclusion_list_urls:
+            file.write(item + '\n')  # Add a newline character after each string
