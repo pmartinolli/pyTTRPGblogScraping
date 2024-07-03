@@ -4,7 +4,7 @@ Created on Mon Jun 17 15:36:13 2024
 
 @author: Pascaliensis with ChatGPT 3.4 and ChatGPT 4o
 
-Version 0.14
+Version 0.15
 """
 
 
@@ -138,7 +138,9 @@ urls_2_inject = [
 
 
 
-### import data from the manual_URL
+### import data from the manual_URL (for the first big iteration) 
+### or
+### import data from the iterationX (the previous big iteration)
 
 manual_url_list = 'manual_urls.txt'  # a text file with one URL per line
 if os.path.exists(manual_url_list) :
@@ -152,6 +154,37 @@ if os.path.exists(manual_url_list) :
             initial_citing_urls[i] = initial_citing_urls[i].rstrip('\n')
 else: 
     initial_citing_urls = []
+
+
+
+iterationX_url_list = 'iterationX_urls.txt'  # a text file with one URL per line
+if os.path.exists(iterationX_url_list) :
+    
+    initial_citing_urls = []
+    with open(iterationX_url_list, 'r', encoding='utf-8') as file:
+        initial_citing_urls = file.readlines()
+        
+        # Remove '%0a' from the end of each URL
+        for i in range(len(initial_citing_urls)):
+            initial_citing_urls[i] = initial_citing_urls[i].rstrip('\n')
+else: 
+    initial_citing_urls = []
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -289,6 +322,7 @@ url_traps = {
     "mailto://",
     "https://goodman-games.com/blog/",
     "http://kickstarte..."
+    "https://www.kickstarter.com",
 } 
  
 # Using list comprehension to create a new list without the URLs to remove
