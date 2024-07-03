@@ -4,7 +4,7 @@ Created on Mon Jun 17 15:36:13 2024
 
 @author: Pascaliensis with ChatGPT 3.4 and ChatGPT 4o
 
-Version 0.13
+Version 0.14
 """
 
 
@@ -243,6 +243,7 @@ if highest_csv_file :
     # Step 2: Remove duplicates from initial_citing_urls
     # Remove the trailing "/" from each string in the list
     initial_citing_urls = [str(url).rstrip('/') for url in initial_citing_urls]
+    initial_citing_urls = [rootify(url) for url in initial_citing_urls]
     initial_citing_urls = list(set(initial_citing_urls))  # Convert to set and back to list to remove duplicates
     # Step 3: Remove URLs found in df['CitingBlogURL']
     citing_urls_set = set(df['CitingBlogURL'].tolist())
@@ -287,6 +288,7 @@ url_traps = {
     "https://blogger.googleusercontent.com",
     "mailto://",
     "https://goodman-games.com/blog/",
+    "http://kickstarte..."
 } 
  
 # Using list comprehension to create a new list without the URLs to remove
