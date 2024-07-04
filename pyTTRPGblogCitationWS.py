@@ -51,7 +51,7 @@ def rootify(url):
 
 
 # This function identifies if a URL is a blog and if it is about TTRPG
-def find_out(url, exclusion_list_urls, exclusion_list_file, timeout=10, max_retries=1):
+def find_out(url, timeout=10, max_retries=1):
     root_url = rootify(url)
     is_blog, is_ttrpg_blog, found_keywords = False, False, ''
     
@@ -98,12 +98,8 @@ def find_out(url, exclusion_list_urls, exclusion_list_file, timeout=10, max_retr
                 print(f"FO - Error fetching {root_url}: {e}")
                 time.sleep(2)
                 found_keywords = str(e)
-
-    with open(exclusion_list_file, 'w', encoding='utf-8') as file:
-        for item in exclusion_list_urls:
-            file.write(item + '\n')
             
-    return is_blog, is_ttrpg_blog, found_keywords
+    return is_ttrpg_blog, found_keywords
 
 
 
@@ -142,7 +138,7 @@ urls_2_inject = [
 ### or
 ### import data from the iterationX (the previous big iteration)
 
-manual_url_list = 'manual_urls.txt'  # a text file with one URL per line
+manual_url_list = '../manual_urls.txt'  # a text file with one URL per line
 if os.path.exists(manual_url_list) :
     
     initial_citing_urls = []
@@ -157,7 +153,7 @@ else:
 
 
 
-iterationX_url_list = 'iterationX_urls.txt'  # a text file with one URL per line
+iterationX_url_list = '../iterationX_urls.txt'  # a text file with one URL per line
 if os.path.exists(iterationX_url_list) :
     
     initial_citing_urls = []
@@ -193,7 +189,7 @@ else:
 ### import exclusion list (build up along the way by crawling)
 # while doing it, remove the possible duplicates 
 
-exclusion_list_file = 'exclusion_list.txt'  # a text file with one URL per line
+exclusion_list_file = '../exclusion_list.txt'  # a text file with one URL per line
 exclusion_list_urls = []
 if os.path.exists(exclusion_list_file) :
     with open(exclusion_list_file, 'r', encoding='utf-8') as file:
@@ -218,7 +214,7 @@ if os.path.exists(exclusion_list_file) :
 #    If not then load a text file named "final_urls.txt"
 
 # Pattern of the csv files
-pattern = 'blog_urls_iteration_*.csv'
+pattern = '../blog_urls_iteration_*.csv'
 
 # Get a list of all csv files
 csv_files = glob.glob(pattern)
@@ -345,7 +341,7 @@ print(f"This iteration starts with {nb_URLs} URLs to process.\n\n")
 next_number = highest_number + 1
 
 # Define the next csv file name
-next_csv_file = f'blog_urls_iteration_{next_number}.csv'
+next_csv_file = f'../blog_urls_iteration_{next_number}.csv'
 
 
 
@@ -373,6 +369,7 @@ cited_blog_urls = []
 
 # Add new rows based on the initial_citing_urls
 for citing_url in initial_citing_urls:
+    
     root_citing_url = rootify(citing_url)
     print(f"\n\nExploring {citing_url} : ")
 
@@ -380,64 +377,68 @@ for citing_url in initial_citing_urls:
         exclusion_list_urls = set(url.strip() for url in file.readlines())
 
     if root_citing_url not in exclusion_list_urls:
-        citing_is_blog, citing_is_ttrpg_blog, citing_found_keywords = find_out(root_citing_url, exclusion_list_urls, exclusion_list_file)
+        
+        citing_is_ttrpg_blog = False
+        citing_found_keywords = ""
+        citing_is_ttrpg_blog, citing_found_keywords = find_out(root_citing_url)
 
         if citing_is_ttrpg_blog:
+            
             try:
                 response = requests.get(root_citing_url)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, 'html.parser')
 
+                cited_blog_urls = {}
                 cited_blog_urls = set(urljoin(root_citing_url, a_tag['href']) for a_tag in soup.find_all('a', href=True))
                 cited_blog_urls = {rootify(url) for url in cited_blog_urls if rootify(url) != root_citing_url and rootify(url) not in exclusion_list_urls}
 
-                for root_cited_url in cited_blog_urls:
-                    try:
-                        cited_is_blog, cited_is_ttrpg_blog, cited_found_keywords = find_out(root_cited_url, exclusion_list_urls, exclusion_list_file)
-                        if cited_is_ttrpg_blog:
-                            print(".", end="")
-                            
-                            with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
-                                writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
-                                writer.writerow({
-                                                    'CitingBlogURL': root_citing_url,
-                                                    'CitingBlogKeywords': citing_found_keywords,
-                                                    'CitedBlogURL': root_cited_url
-                                                })
-                        else : 
-                            print("/", end="")
-                            
-                            
-                            
-                    except:
-                        pass
+                if cited_blog_urls :
 
+                    for root_cited_url in cited_blog_urls:
+                        
+                            try:    
+                                
+                                cited_is_ttrpg_blog, cited_found_keywords = find_out(root_cited_url)
+                                
+                                if cited_is_ttrpg_blog:
+                                    print(".", end="")
+                                    
+                                    with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
+                                        writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
+                                        writer.writerow({
+                                                            'CitingBlogURL': root_citing_url,
+                                                            'CitingBlogKeywords': citing_found_keywords,
+                                                            'CitedBlogURL': root_cited_url
+                                                        })
+                                else : 
+                                    print("/", end="")
+                                    # Adding this URL to exclusion list
+                                    exclusion_list_urls.add(root_cited_url)
+                                    
+                            except:
+                                # Adding this URL to exclusion list
+                                exclusion_list_urls.add(root_cited_url)
+                                pass
+                            
+                else: #if not blog cited 
+                    with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
+                       writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
+                       writer.writerow({
+                                           'CitingBlogURL': root_citing_url,
+                                           'CitingBlogKeywords': citing_found_keywords,
+                                           'CitedBlogURL': "no TTRPG blog cited"
+                                       })
+                
             except requests.RequestException as e:
                 print(f"Error fetching {root_citing_url}: {e}")
-  
-                
-            if cited_blog_urls : 
-                
-                for cited_url in cited_blog_urls:
-                    
-                    with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
-                        writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
-                        writer.writerow({
-                                            'CitingBlogURL': root_citing_url,
-                                            'CitingBlogKeywords': citing_found_keywords,
-                                            'CitedBlogURL': cited_url
-                                        })
+                # Adding this URL to exclusion list
+                exclusion_list_urls.add(root_citing_url)
+           
+            
     
-            else : 
-                with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
-                    writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
-                    writer.writerow({
-                                        'CitingBlogURL': root_citing_url,
-                                        'CitingBlogKeywords': citing_found_keywords,
-                                        'CitedBlogURL': "no TTRPG blog cited"
-                                    })
-    
-        else: 
+        else: # if citing is not a TTRPG blog or errors 
+            
             if citing_found_keywords : 
                 # in fact, its asking "do there is a error message in citing_found_keywords?"
                 data = {
@@ -455,8 +456,8 @@ for citing_url in initial_citing_urls:
             with open(next_csv_file, mode='a', encoding="utf-8", newline='') as file:
                 writer = csv.DictWriter(file, fieldnames=['CitingBlogURL', 'CitingBlogKeywords', 'CitedBlogURL'])
                 writer.writerow(data)
-    else : 
-        # in case root_citing_url is in exclusion list 
+    
+    else : # if root_citing_url is in exclusion list 
         data = {
             'CitingBlogURL': root_citing_url,
             'CitingBlogKeywords': "not TTRPG blog (exclusion)",

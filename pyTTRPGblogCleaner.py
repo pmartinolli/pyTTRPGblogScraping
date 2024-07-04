@@ -15,7 +15,7 @@ import re
 #    If not then load a text file named "final_urls.txt"
 
 # Pattern of the csv files
-pattern = 'blog_urls_iteration_*.csv'
+pattern = '../blog_urls_iteration_*.csv'
 
 # Get a list of all csv files
 csv_files = glob.glob(pattern)
@@ -81,6 +81,22 @@ df['CitedBlogURL'] = df['CitedBlogURL'].apply(lambda x: x.split('blogspot')[0] +
 df = df[~df['CitingBlogKeywords'].str.startswith('not TTRPG blog')]
 df = df[~df['CitingBlogKeywords'].str.startswith('no TTRPG blog cited')]
 
+# Remove the rows where "unwanted"
+unwanted = ('blogger.googleusercontent',
+                     'amazon',
+                     'ko-fi',
+                     'kickstarter',
+                     'bp.blogspot',
+                     'lulu',
+                     '@',
+                     'mailto',
+                     'iconscout',
+                     )
+# Create a regex pattern from the unwanted substrings
+pattern = '|'.join(unwanted)
+df = df[~df['CitedBlogURL'].str.contains(pattern, regex=True)]
+
+
 # Remove the rows where Citing = Cited
 df = df[df['CitingBlogURL'] != df['CitedBlogURL']]
 
@@ -91,6 +107,6 @@ df = df.drop_duplicates(subset=['CitingBlogURL', 'CitedBlogURL'])
 df = df.rename(columns={'CitingBlogURL': 'Source', 'CitedBlogURL': 'Target'})
 
 
-df.to_csv('clean_citing_cited_TTRPG_blog_list.csv', index=False)
+df.to_csv('../clean_citing_cited_TTRPG_blog_list.csv', index=False)
 
 print("\nCSV cleaned and exported")

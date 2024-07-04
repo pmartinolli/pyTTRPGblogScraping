@@ -20,7 +20,7 @@ import pandas as pd
 #    If not then load a text file named "final_urls.txt"
 
 # Pattern of the csv files
-pattern = 'blog_urls_iteration_*.csv'
+pattern = '../blog_urls_iteration_*.csv'
 
 # Get a list of all csv files
 csv_files = glob.glob(pattern)
@@ -113,7 +113,7 @@ if highest_csv_file:
     initial_urls_list = sorted(initial_urls_set)
 
     # Write the URLs to a text file, each value on a new line
-    with open('iterationX_urls.txt', 'w') as file:
+    with open('../iterationX_urls.txt', 'w') as file:
         for url in initial_urls_list:
             file.write(url + '\n')
 

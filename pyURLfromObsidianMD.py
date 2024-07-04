@@ -34,10 +34,10 @@ def crawl_and_collect_urls(root_folder, output_file):
                         print(".", end="")
 
 # Example usage
-root_folder = r'C:\Users\pascaliensis\ObsidianV\TTRPGconseils'  # Replace with your actual root folder path
-output_file = 'extracted_urls.txt'
-processed_file = 'processed_urls.txt' 
-final_file = 'manual_urls.txt'
+root_folder = r'C:\Users\.........\ObsidianV\TTRPGconseils'  # Replace with your actual root folder path
+output_file = '../extracted_urls.txt'
+processed_file = '../processed_urls.txt' 
+final_file = '../manual_urls.txt'
 
 crawl_and_collect_urls(root_folder, output_file)
 
