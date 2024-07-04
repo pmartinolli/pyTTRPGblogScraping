@@ -47,10 +47,8 @@ def rootify(url):
 
 
 
-# This function identifies if an URL is a blog and if it is about TTRPG 
-
-
 # This function identifies if a URL is a blog and if it is about TTRPG
+
 def find_out(url, timeout=10, max_retries=1):
     root_url = rootify(url)
     is_blog, is_ttrpg_blog, found_keywords = False, False, ''
@@ -163,8 +161,7 @@ if os.path.exists(iterationX_url_list) :
         # Remove '%0a' from the end of each URL
         for i in range(len(initial_citing_urls)):
             initial_citing_urls[i] = initial_citing_urls[i].rstrip('\n')
-else: 
-    initial_citing_urls = []
+
 
 
 
@@ -236,9 +233,13 @@ if csv_files:
             number = int(match.group(1))
 
             # Update the highest number and file name if necessary
-            if number > highest_number:
+            if number > highest_number :
                 highest_number = number
                 highest_csv_file = file
+            else :
+                highest_number = 1
+                highest_csv_file = '../blog_urls_iteration_{highest_number}.csv'
+                
 
     print(f"The file with the highest number in its name is: {highest_csv_file}")
 else:
@@ -257,14 +258,6 @@ if highest_csv_file :
     # Optionally, convert the DataFrame to a dictionary, list, or other structure if needed
     initial_csv_values = df.to_dict(orient='records')  # Or use .to_list() for a list of rows, etc.
     # the result will be injected at the begining of the next iteration
-    
-    # Step 1: 
-    # Filter non-empty 'CitedBlogURL' values
-    # Integrating the previous initial URLs if existing
-    
-    # highly problematic
-    # i prefer finishing the whole first iteration then integrate the next layer later
-    # initial_citing_urls = initial_citing_urls + df['CitedBlogURL'][df['CitedBlogURL'] != ''].tolist()
     
     # here are injected the URLs we want to add between two iterations
     initial_citing_urls = urls_2_inject + initial_citing_urls 
