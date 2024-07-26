@@ -61,7 +61,7 @@ def find_out(url, timeout=10, max_retries=1):
             'article', 'articles', 'post', 'posts'
         ]
         rpg_keywords = [
-            'ttrpg', 'trpg', 'rpg', 'role-playing', 'roleplaying', 'role playing', 'jeu de rôle', 'jeux de rôle', 
+            'ttrpg', 'trpg', 'rpg', 'role-playing', 'roleplaying', 'role playing', 'jeu de rôle', 'jeux de rôle', 'jdr',
             'rôliste', 'rolista', 'RPGista', 'juego de rol', 'juegos de rol', 'joc de rol', 'rollenspiel', 
             'roolipeli', 'gioco di ruolo', 'ludus personarum', 'gra fabularna', 'rollspel', 'рольова гра', 
             'permainan berperanan', 'permainan bermain peran', 'gamemaster', 'game master', 'dungeon master', 
